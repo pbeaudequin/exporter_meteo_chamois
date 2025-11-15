@@ -15,10 +15,10 @@ help:
 	@echo ""
 
 build:
-	docker-compose build
+	docker compose build
 
 run:
-	docker-compose up -d
+	docker compose up -d
 	@echo ""
 	@echo "Exporter started: http://localhost:9100"
 	@echo ""
@@ -30,10 +30,10 @@ run:
 	@echo ""
 
 stop:
-	docker-compose down
+	docker compose down
 
 logs:
-	docker-compose logs -f exporter
+	docker compose logs -f exporter
 
 test:
 	@echo "Testing exporter endpoints..."
@@ -50,7 +50,7 @@ metrics:
 	@curl -s http://localhost:9100/metrics
 
 clean:
-	docker-compose down -v
+	docker compose down -v
 	rm -rf __pycache__ src/__pycache__ src/*/__pycache__
 
 docker-build:

@@ -20,10 +20,11 @@ class WeatherHTMLParser:
 
     @staticmethod
     def _extract_float(text: str) -> float:
-        """Extract float value from text"""
+        """Extract float value from text (handles both dot and comma as decimal separator)"""
         try:
-            # Remove non-numeric characters except dots and minus
-            cleaned = re.sub(r'[^\d.-]', '', text.strip())
+            # Replace comma with dot for French format, remove non-numeric characters except dots and minus
+            cleaned = text.strip().replace(',', '.')
+            cleaned = re.sub(r'[^\d.-]', '', cleaned)
             return float(cleaned) if cleaned else 0.0
         except (ValueError, AttributeError):
             return 0.0
@@ -52,35 +53,50 @@ class WeatherHTMLParser:
 
             # Extract all numeric values with their context for better matching
             # Temperature - be more flexible with patterns
+            # Note: French format uses comma as decimal separator (e.g., 18,1 °C)
             patterns = [
-                (r'(?:Temperature|Temp)[:\s]*[=]?\s*(\d+\.?\d*)\s*°?C', 'temperature.current'),
-                (r'(?:Min|Minimum)[:\s]+(\d+\.?\d*)\s*°?C', 'temperature.min'),
-                (r'(?:Max|Maximum)[:\s]+(\d+\.?\d*)\s*°?C', 'temperature.max'),
-                (r'(?:Humidity|Hum)[:\s]+(\d+)\s*%', 'humidity.current'),
-                (r'(?:Pressure|Pression|Press)[:\s]+(\d{3,4}\.?\d*)\s*(?:hPa|mb)', 'pressure.current'),
-                (r'([+-]\d+\.?\d*)\s*hPa', 'pressure.trend'),
-                (r'(?:Wind|Vent)[:\s]+(\d+\.?\d*)\s*km/?h', 'wind.speed'),
-                (r'(?:Gust|Rafale)[:\s]+(\d+\.?\d*)\s*km', 'wind.gust_max'),
-                (r'(?:Rain|Pluie).*?(?:Today|Aujourd\'hui)[:\s]+(\d+\.?\d*)\s*mm', 'rain.today'),
-                (r'(?:Dew\s*Point|Point\s*de\s*rosée)[:\s]+(\d+\.?\d*)', 'dewpoint'),
+                # Temperature - look for "Actuel" followed by temperature
+                (r'Actuel[\s\xa0]*(\d+[,.]?\d*)\s*°C', 'temperature.current'),
+                # Min/Max with time (e.g., "Min.(08:20)13,8 °C")
+                (r'Min\.\([^)]+\)(\d+[,.]?\d*)\s*°C', 'temperature.min'),
+                (r'Max\.\([^)]+\)(\d+[,.]?\d*)\s*°C', 'temperature.max'),
+                # Average (e.g., "Moyenne15,7 °C")
+                (r'Moyenne[\s\xa0]*(\d+[,.]?\d*)\s*°C', 'temperature.average'),
+                # Humidity (e.g., "Actuel 98 %")
+                (r'Actuel[\s\xa0]*(\d+)\s*%', 'humidity.current'),
+                (r'Min\.\([^)]+\)(\d+)\s*%', 'humidity.min'),
+                (r'Max\.\([^)]+\)(\d+)\s*%', 'humidity.max'),
+                # Pressure
+                (r'(?:Pressure|Pression|Press)[\s:]+(\d{3,4}[,.]?\d*)\s*(?:hPa|mb)', 'pressure.current'),
+                (r'([+-]\d+[,.]?\d*)\s*hPa', 'pressure.trend'),
+                # Wind
+                (r'(?:Wind|Vent)[\s:]+(\d+[,.]?\d*)\s*km/?h', 'wind.speed'),
+                (r'(?:Gust|Rafale)[\s:]+(\d+[,.]?\d*)\s*km', 'wind.gust_max'),
+                # Rain
+                (r'(?:Rain|Pluie).*?(?:Today|Aujourd\'hui)[\s:]+(\d+[,.]?\d*)\s*mm', 'rain.today'),
+                # Dewpoint
+                (r'(?:Dew\s*Point|Point\s*de\s*rosée)[\s:]+(\d+[,.]?\d*)', 'dewpoint'),
             ]
 
             for pattern, field in patterns:
                 match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
                 if match:
-                    value = match.group(1)
-                    logger.debug(f"Found {field}: {value}")
+                    value_str = match.group(1).replace(',', '.')  # Convert French format to float
+                    logger.debug(f"Found {field}: {value_str}")
 
-                    # Set the value based on the field path
-                    parts = field.split('.')
-                    if len(parts) == 2:
-                        obj = getattr(weather, parts[0])
-                        if 'humidity' in field or 'current' in field and 'humidity' in parts[0]:
-                            setattr(obj, parts[1], int(float(value)))
+                    try:
+                        # Set the value based on the field path
+                        parts = field.split('.')
+                        if len(parts) == 2:
+                            obj = getattr(weather, parts[0])
+                            if 'humidity' in field:
+                                setattr(obj, parts[1], int(float(value_str)))
+                            else:
+                                setattr(obj, parts[1], float(value_str))
                         else:
-                            setattr(obj, parts[1], float(value))
-                    else:
-                        setattr(weather, field, float(value))
+                            setattr(weather, field, float(value_str))
+                    except (ValueError, AttributeError) as e:
+                        logger.warning(f"Failed to set {field}={value_str}: {e}")
 
             weather.timestamp = datetime.now()
 

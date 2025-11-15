@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 60s
+  evaluation_interval: 60s
+  scrape_timeout: 10s
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Weather exporter
+  - job_name: 'weather'
+    scrape_interval: 60s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['exporter:9100']
+        labels:
+          station: 'roquefort_les_pins'
+          location: 'Roquefort les Pins, France'
+
+# Alerting rules (optional)
+# rule_files:
+#   - 'alerts.yml'

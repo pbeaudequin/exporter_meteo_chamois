@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  exporter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: meteo-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    environment:
+      - LISTEN_ADDRESS=0.0.0.0
+      - LISTEN_PORT=9100
+      - STATION_URL=https://www.meteo-roquefort-les-pins.com
+      - STATION_NAME=roquefort_les_pins
+      - SCRAPE_TIMEOUT=10
+      - CACHE_TTL=60
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:9100/health\")'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

@@ -59,7 +59,9 @@ class Solar:
     """Solar radiation data"""
     radiation_current: float = 0.0
     radiation_max: float = 0.0
-    sunshine_minutes: float = 0.0
+    sunshine_today_minutes: float = 0.0
+    sunshine_month_minutes: float = 0.0
+    sunshine_year_minutes: float = 0.0
 
 
 @dataclass

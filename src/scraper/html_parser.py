@@ -38,6 +38,23 @@ class WeatherHTMLParser:
         except (ValueError, AttributeError):
             return 0
 
+    @staticmethod
+    def _extract_duration_minutes(text: str) -> float:
+        """
+        Extract duration and convert to minutes
+        Handles formats like: "2:27 h", "7:54 heures", "156:36 h", "2176:45 h"
+        """
+        try:
+            # Look for pattern like "123:45" (hours:minutes)
+            match = re.search(r'(\d+):(\d+)', text)
+            if match:
+                hours = int(match.group(1))
+                minutes = int(match.group(2))
+                return hours * 60 + minutes
+            return 0.0
+        except (ValueError, AttributeError):
+            return 0.0
+
     def parse_currant_html(self, html: str) -> WeatherData:
         """
         Parse the currant.html page
@@ -98,11 +115,57 @@ class WeatherHTMLParser:
                     except (ValueError, AttributeError) as e:
                         logger.warning(f"Failed to set {field}={value_str}: {e}")
 
+            # Extract sunshine and solar radiation data
+            # Look for the solar radiation table with "Ensoleillement" text
+            solar_section = soup.find_all(string=re.compile(r'Ensoleillement', re.IGNORECASE))
+
+            if solar_section:
+                # Get the parent table containing all solar data
+                for elem in solar_section:
+                    table = elem.find_parent('table')
+                    if table:
+                        table_text = table.get_text()
+
+                        # Extract sunshine durations for different periods
+                        # Format: "EnsoleillementAujourd'hui2:27 h (durée du jour: 09:16)"
+                        # Note: The HTML has no spaces between "Ensoleillement" and the period name
+                        sunshine_today = re.search(r"Aujourd[\u2019']hui\s*(\d+:\d+)\s*h", table_text, re.IGNORECASE)
+                        if sunshine_today:
+                            weather.solar.sunshine_today_minutes = self._extract_duration_minutes(sunshine_today.group(1))
+                            logger.debug(f"Sunshine today: {weather.solar.sunshine_today_minutes} minutes")
+
+                        sunshine_month = re.search(r"Mois\s*(\d+:\d+)\s*h", table_text, re.IGNORECASE)
+                        if sunshine_month:
+                            weather.solar.sunshine_month_minutes = self._extract_duration_minutes(sunshine_month.group(1))
+                            logger.debug(f"Sunshine month: {weather.solar.sunshine_month_minutes} minutes")
+
+                        sunshine_year = re.search(r"Ann[ée]e\s*(\d+:\d+)\s*h", table_text, re.IGNORECASE)
+                        if sunshine_year:
+                            weather.solar.sunshine_year_minutes = self._extract_duration_minutes(sunshine_year.group(1))
+                            logger.debug(f"Sunshine year: {weather.solar.sunshine_year_minutes} minutes")
+
+                        # Extract solar radiation max (24h)
+                        # Format: "Energie max 24h</font><br><font size="4">557 W/m²"
+                        solar_max = re.search(r"Energie max 24h.*?(\d+)\s*W/m", table_text, re.IGNORECASE)
+                        if solar_max:
+                            weather.solar.radiation_max = float(solar_max.group(1))
+                            logger.debug(f"Solar radiation max: {weather.solar.radiation_max} W/m²")
+
+                        # Extract current/average solar radiation
+                        # Format: "Moyenne aujourd'hui</font><br><font size="4">167 W/m²"
+                        solar_current = re.search(r"Moyenne aujourd'hui.*?(\d+)\s*W/m", table_text, re.IGNORECASE)
+                        if solar_current:
+                            weather.solar.radiation_current = float(solar_current.group(1))
+                            logger.debug(f"Solar radiation current: {weather.solar.radiation_current} W/m²")
+
+                        break  # We found the table, no need to continue
+
             weather.timestamp = datetime.now()
 
             # Log what we found
             logger.info(f"Parsed currant.html: temp={weather.temperature.current}°C, "
-                       f"humidity={weather.humidity.current}%, pressure={weather.pressure.current}hPa")
+                       f"humidity={weather.humidity.current}%, pressure={weather.pressure.current}hPa, "
+                       f"sunshine_today={weather.solar.sunshine_today_minutes}min")
 
         except Exception as e:
             logger.error(f"Error parsing currant.html: {e}", exc_info=True)

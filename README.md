@@ -188,24 +188,40 @@ time() - weather_last_update_timestamp > 300
 
 ## Dashboard Grafana
 
-Panels recommandés :
+Un dashboard complet et professionnel est inclus et automatiquement provisionné ! 🎨
 
-1. **Température** - Time series graph
-   - Query : `weather_temperature_celsius`
-   - Legend : `{{type}}`
+### Accès rapide
 
-2. **Vent** - Gauge + Stat
-   - Current : `weather_wind_speed_kmh{type="current"}`
-   - Gust : `weather_wind_speed_kmh{type="gust_max"}`
+```bash
+# Démarrer la stack complète
+docker compose up -d
 
-3. **Précipitations** - Bar gauge
-   - Query : `weather_rain_mm`
+# Le dashboard est automatiquement disponible sur :
+# http://localhost:3000
+# Login: admin / admin
+```
 
-4. **Pression** - Time series avec tendance
-   - Query : `weather_pressure_hpa{type="current"}`
+### Fonctionnalités du dashboard
 
-5. **Humidité** - Gauge
-   - Query : `weather_humidity_percent{type="current"}`
+Le dashboard **"Météo Roquefort-les-Pins"** inclut :
+
+- 🌡️ **Gauges en temps réel** : Température, humidité, pression, vent
+- 📈 **Graphiques historiques** : Évolution sur 24h avec min/max
+- 🌧️ **Précipitations** : Cumulées (heure/jour/mois/année) + taux
+- ☀️ **Ensoleillement** : Rayonnement solaire et durée
+- 💨 **Vent détaillé** : Vitesse, direction, rafales avec codes couleurs
+- 🔥 **Indices de confort** : Point de rosée, indice de chaleur, THSW
+- 📊 **Monitoring système** : État du scraping, performance, cache
+- 🎨 **Design moderne** : Emojis, descriptions, seuils d'alerte colorés
+
+**Voir la documentation complète** : [config/grafana/README.md](config/grafana/README.md)
+
+### Import manuel
+
+Si vous utilisez une instance Grafana existante, importez simplement :
+```
+config/grafana/provisioning/dashboards/meteo-roquefort.json
+```
 
 ## Architecture
 

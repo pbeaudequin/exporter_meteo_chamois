@@ -136,7 +136,9 @@ class WeatherCollector(Collector):
             'Sunshine duration in minutes',
             labels=['station', 'period']
         )
-        sunshine.add_metric([self.station_name, 'today'], weather.solar.sunshine_minutes)
+        sunshine.add_metric([self.station_name, 'today'], weather.solar.sunshine_today_minutes)
+        sunshine.add_metric([self.station_name, 'month'], weather.solar.sunshine_month_minutes)
+        sunshine.add_metric([self.station_name, 'year'], weather.solar.sunshine_year_minutes)
         yield sunshine
 
         # Dewpoint
